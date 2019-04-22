@@ -3,7 +3,6 @@ package dmd.project.demo.models;
 import com.arangodb.springframework.annotation.Document;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import org.springframework.data.annotation.Id;
 import org.springframework.format.annotation.DateTimeFormat;
 
 import java.time.LocalDate;
@@ -13,9 +12,6 @@ import java.util.Collection;
 @Document("lesson")
 @NoArgsConstructor
 public class Lesson {
-
-    @Id
-    private String id;
 
     private Course course;
 

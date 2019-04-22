@@ -1,6 +1,5 @@
 package dmd.project.demo.controllers;
 
-import com.arangodb.springframework.core.ArangoOperations;
 import dmd.project.demo.models.*;
 import dmd.project.demo.repositories.*;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -18,7 +17,6 @@ import java.util.stream.StreamSupport;
 @RequestMapping("/")
 public class DatabaseController {
 
-    private final ArangoOperations operations;
     private final CourseRepo courseRepo;
     private final RoomRepo roomRepo;
     private final UserRepo userRepo;
@@ -28,15 +26,13 @@ public class DatabaseController {
     private final PerformanceRepo performanceRepo;
 
     @Autowired
-    public DatabaseController(ArangoOperations operations,
-                              CourseRepo courseRepo,
+    public DatabaseController(CourseRepo courseRepo,
                               RoomRepo roomRepo,
                               UserRepo userRepo,
                               GradesRepo gradesRepo,
                               LessonRepo lessonRepo,
                               TimetableRepo timetableRepo,
                               PerformanceRepo performanceRepo) {
-        this.operations = operations;
         this.courseRepo = courseRepo;
         this.roomRepo = roomRepo;
         this.userRepo = userRepo;
@@ -156,5 +152,17 @@ public class DatabaseController {
             performances.add(performance);
         }
         performanceRepo.saveAll(performances);
+    }
+
+    @GetMapping("/getGrades/{studentId}")
+    public StudentGrades getGradesOfStudentLastMonth(@PathVariable String studentId) {
+        Optional<User> student = userRepo.findById(studentId);
+        if (!student.isPresent()) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "No student with id " + studentId + ".");
+        }
+
+        Collection<GradesShort> grades = gradesRepo.findByStudentLastMonth(studentId);
+
+        return new StudentGrades(student.get(), grades);
     }
 }
