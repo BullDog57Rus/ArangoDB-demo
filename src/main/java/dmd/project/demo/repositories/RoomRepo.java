@@ -7,7 +7,5 @@ import java.util.Collection;
 
 public interface RoomRepo extends ArangoRepository<Room, String> {
 
-    Collection<Room> findAllByRoomContaining(String room);
-
     Iterable<Room> findAll();
 }

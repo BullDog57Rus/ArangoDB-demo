@@ -1,8 +1,10 @@
 package dmd.project.demo.controllers;
 
+import com.arangodb.springframework.core.ArangoOperations;
 import dmd.project.demo.models.*;
 import dmd.project.demo.repositories.*;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
@@ -16,26 +18,32 @@ import java.util.stream.StreamSupport;
 @RequestMapping("/")
 public class DatabaseController {
 
+    private final ArangoOperations operations;
     private final CourseRepo courseRepo;
     private final RoomRepo roomRepo;
     private final UserRepo userRepo;
     private final GradesRepo gradesRepo;
     private final LessonRepo lessonRepo;
     private final TimetableRepo timetableRepo;
+    private final PerformanceRepo performanceRepo;
 
     @Autowired
-    public DatabaseController(CourseRepo courseRepo,
+    public DatabaseController(ArangoOperations operations,
+                              CourseRepo courseRepo,
                               RoomRepo roomRepo,
                               UserRepo userRepo,
                               GradesRepo gradesRepo,
                               LessonRepo lessonRepo,
-                              TimetableRepo timetableRepo) {
+                              TimetableRepo timetableRepo,
+                              PerformanceRepo performanceRepo) {
+        this.operations = operations;
         this.courseRepo = courseRepo;
         this.roomRepo = roomRepo;
         this.userRepo = userRepo;
         this.gradesRepo = gradesRepo;
         this.lessonRepo = lessonRepo;
         this.timetableRepo = timetableRepo;
+        this.performanceRepo = performanceRepo;
     }
 
     @PostMapping("/addStudent")
@@ -104,8 +112,49 @@ public class DatabaseController {
     }
 
     @PostMapping("/createTimetable")
-    public void addTimetable() {
+    public void createTimetable() {
         Collection<TimetableDay> timetable = getTimetable();
         timetableRepo.saveAll(timetable);
+    }
+
+    @GetMapping("/getPerformance/{number}")
+    public Collection<PerformanceGeo> getPerformance(@PathVariable long number) {
+        Performance bestPerformance = performanceRepo.findAll(new Sort(Sort.Direction.DESC, "performance")).iterator().next();
+        return performanceRepo.findNearByPerformance(bestPerformance.getPerformance()[0],
+                bestPerformance.getPerformance()[1], number);
+    }
+
+    @PostMapping("/createPerformance")
+    public void createPerformance() {
+        Collection<Performance> performances = new ArrayList<>();
+        Map<User, Long> studentsAttendance = userRepo.findByRole(Role.STUDENT).stream()
+                .collect(Collectors.toMap(us -> us, us -> new Long(0)));
+        long lessons = lessonRepo.count();
+        for (Lesson l : lessonRepo.findAll()) {
+            for (User stud : studentsAttendance.keySet()) {
+                if (l.getStudents().contains(stud)) {
+                    studentsAttendance.replace(stud, studentsAttendance.get(stud) + 1);
+                }
+            }
+        }
+        Map<User, ArrayList<Long>> studentsGrades = userRepo.findByRole(Role.STUDENT).stream()
+                .collect(Collectors.toMap(us -> us, us -> new ArrayList<>(Arrays.asList(0L, 0L))));
+        for (Grades grade :
+                gradesRepo.findAll()) {
+            if (studentsGrades.keySet().contains(grade.getStudent())) {
+                Long gradeValue = studentsGrades.get(grade.getStudent()).get(0);
+                Long gradeCount = studentsGrades.get(grade.getStudent()).get(1);
+                Long newGrade = grade.getGrades().stream().mapToLong(Short::longValue).sum();
+                studentsGrades.replace(grade.getStudent(), new ArrayList<>(Arrays.asList(gradeValue + newGrade, gradeCount + grade.getGrades().size())));
+            }
+        }
+        for (User stud : studentsAttendance.keySet()) {
+            Performance performance = new Performance();
+            performance.setStudent(stud);
+            performance.setPerformance(new double[]{(double) 100 * studentsGrades.get(stud).get(0) / studentsGrades.get(stud).get(1) / 5,
+                    (double) 100 * studentsAttendance.get(stud) / ((double) lessons / 6)});
+            performances.add(performance);
+        }
+        performanceRepo.saveAll(performances);
     }
 }

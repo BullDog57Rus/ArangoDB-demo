@@ -6,6 +6,7 @@ import lombok.NoArgsConstructor;
 import org.springframework.data.annotation.Id;
 
 import java.util.Collection;
+import java.util.Set;
 
 @Data
 @Document("course")
@@ -17,7 +18,7 @@ public class Course {
 
     private String name;
 
-    private Collection<Short> forms;
+    private Set<Short> forms;
 
     private User teacher;
 }
