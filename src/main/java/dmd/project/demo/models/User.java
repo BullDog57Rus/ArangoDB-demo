@@ -4,6 +4,9 @@ import com.arangodb.springframework.annotation.Document;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.springframework.data.annotation.Id;
+import org.springframework.format.annotation.DateTimeFormat;
+
+import java.time.LocalDate;
 
 @Data
 @Document("user")
@@ -22,4 +25,7 @@ public class User {
     private Short form;
 
     private Short group;
+
+    @DateTimeFormat(pattern = "yyyy-MM-dd")
+    private LocalDate birthday;
 }

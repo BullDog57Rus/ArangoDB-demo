@@ -3,7 +3,6 @@ package dmd.project.demo.controllers;
 import dmd.project.demo.models.*;
 import dmd.project.demo.repositories.*;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
@@ -24,6 +23,13 @@ public class DatabaseController {
     private final LessonRepo lessonRepo;
     private final TimetableRepo timetableRepo;
     private final PerformanceRepo performanceRepo;
+
+    private static final short[] forms = new short[]{9, 10};
+    private static final short[] groups = new short[]{1, 2, 3, 4, 5};
+    private static final int formCount = forms.length;
+    private static final int groupCount = groups.length;
+    private static final int lessonCount = 7;
+
 
     @Autowired
     public DatabaseController(CourseRepo courseRepo,
@@ -56,8 +62,6 @@ public class DatabaseController {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "No courses or rooms available.");
         }
 
-        short[] forms = new short[]{9, 10};
-        short[] groups = new short[]{1, 2, 3};
         Collection<TimetableDay> timetable = new ArrayList<>();
 
         for (DayOfWeek weekDay : DayOfWeek.values()) {
@@ -65,10 +69,10 @@ public class DatabaseController {
                 break;
             }
 
-            Lesson[][][] lessons = new Lesson[2][3][7];
-            for (int i = 0; i < forms.length; i++) {
+            Lesson[][][] lessons = new Lesson[formCount][groupCount][lessonCount];
+            for (int i = 0; i < formCount; i++) {
                 Short form = forms[i];
-                for (int j = 0; j < groups.length; j++) {
+                for (int j = 0; j < groupCount; j++) {
                     Short group = groups[j];
                     List<Course> availableCourses = new ArrayList<>(courses);
                     TimetableDay timetableDay = new TimetableDay();
@@ -77,7 +81,7 @@ public class DatabaseController {
                     timetableDay.setGroup(group);
                     timetableDay.setLessons(new ArrayList<>());
                     short n = 0;
-                    while (n < 7) {
+                    while (n < lessonCount) {
                         short number = n;
                         Collections.shuffle(rooms);
                         Collections.shuffle(availableCourses);
@@ -113,11 +117,33 @@ public class DatabaseController {
         timetableRepo.saveAll(timetable);
     }
 
-    @GetMapping("/getPerformance/{number}")
-    public Collection<PerformanceGeo> getPerformance(@PathVariable long number) {
-        Performance bestPerformance = performanceRepo.findAll(new Sort(Sort.Direction.DESC, "performance")).iterator().next();
-        return performanceRepo.findNearByPerformance(bestPerformance.getPerformance()[0],
-                bestPerformance.getPerformance()[1], number);
+    @GetMapping("/getPerformance")
+    public Collection<PerformanceGeo> getPerformance(@RequestParam String studentId,
+                                                     @RequestParam long number) {
+        Optional<Performance> bestPerformance = performanceRepo.findByStudent_Id(studentId);
+        if (!bestPerformance.isPresent()) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "No student with id " + studentId + ".");
+        }
+
+        return performanceRepo.findNearByPerformance(bestPerformance.get().getPerformance()[0],
+                bestPerformance.get().getPerformance()[1],
+                number);
+    }
+
+    @GetMapping("/getPerformanceWithDate")
+    public Collection<PerformanceGeo> getPerformanceWithDate(@RequestParam String studentId,
+                                                             @RequestParam String unit,
+                                                             @RequestParam long number) {
+        Optional<Performance> bestPerformance = performanceRepo.findByStudent_Id(studentId);
+        if (!bestPerformance.isPresent()) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "No student with id " + studentId + ".");
+        }
+
+        return performanceRepo.findNearByPerformanceWithDate(bestPerformance.get().getPerformance()[0],
+                bestPerformance.get().getPerformance()[1],
+                number,
+                userRepo.count(),
+                unit);
     }
 
     @PostMapping("/createPerformance")
@@ -148,7 +174,7 @@ public class DatabaseController {
             Performance performance = new Performance();
             performance.setStudent(stud);
             performance.setPerformance(new double[]{(double) 100 * studentsGrades.get(stud).get(0) / studentsGrades.get(stud).get(1) / 5,
-                    (double) 100 * studentsAttendance.get(stud) / ((double) lessons / 6)});
+                    (double) 100 * studentsAttendance.get(stud) / ((double) lessons / (formCount * groupCount))});
             performances.add(performance);
         }
         performanceRepo.saveAll(performances);

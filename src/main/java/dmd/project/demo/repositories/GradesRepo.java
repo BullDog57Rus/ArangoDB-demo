@@ -10,10 +10,12 @@ import java.util.Collection;
 
 public interface GradesRepo extends ArangoRepository<Grades, String> {
 
-    @Query("FOR g IN grades " +
+    @Query("LET now = DATE_NOW() " +
+            "LET lastMonth = DATE_TIMESTAMP(DATE_SUBTRACT(now, 1, 'm')) " +
+            "FOR g IN grades " +
             "FILTER g.student._key == @student_id" +
             "    AND " +
-            "DATE_TIMESTAMP(g.date) > DATE_TIMESTAMP(DATE_SUBTRACT(DATE_NOW(), 1, 'm')) " +
+            "DATE_TIMESTAMP(g.date) >= lastMonth AND DATE_TIMESTAMP(g.date) <= now " +
             "SORT g.date ASC " +
             "RETURN {" +
             "   date: g.date," +

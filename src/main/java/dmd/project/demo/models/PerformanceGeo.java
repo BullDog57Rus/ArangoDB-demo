@@ -3,6 +3,8 @@ package dmd.project.demo.models;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.time.LocalDate;
+
 @Data
 @NoArgsConstructor
 public class PerformanceGeo {
@@ -16,4 +18,6 @@ public class PerformanceGeo {
     private Double attendance;
 
     private Double distance;
+
+    private LocalDate birthday;
 }
